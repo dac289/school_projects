@@ -184,4 +184,5 @@ def main_gas():
     predictive_analysis(df)
     
 
-main_gas()
+if __name__ = "__main__":
+    main()
