@@ -1,0 +1,76 @@
+data <- read.csv("framingham_heart_disease.csv",header=T)
+attach(data)
+data <- na.omit(data)
+attach(data)
+
+
+library(caTools)
+library(tidyverse)
+library(caret)
+library(leaps)
+library(MASS)
+library(ModelMetrics)
+
+# Problem 1
+
+print(data$male)
+
+names(data)
+K=ncol(data)-1
+AICF=matrix(nrow=K,ncol=1)
+sAICF=matrix(nrow=K,ncol=1)
+droppedc=matrix(nrow=K,ncol=1)
+attach(data)
+for(k in 1:K){
+  AICF[k]=summary(glm(TenYearCHD~data[,k],family=binomial(link="logit")))$aic
+}
+ord=order(AICF)
+
+sAICF[1]=AICF[which.min(AICF)]
+space=data[,ord[1]]
+for(k in 2:K){
+  space=cbind(space,data[,ord[k]])
+  lcol=dim(space)[2]
+  sAICF[k]=summary(glm(TenYearCHD~space,family=binomial(link="logit")))$aic
+  if (sAICF[k]>=sAICF[k-1]){
+    space=space[,-c(lcol)];droppedc[k]=ord[k]
+  } 
+}
+IVSpace=data[,c(setdiff(ord,droppedc))]
+
+
+optima=glm(TenYearCHD~. ,data=IVSpace,family=binomial(link="logit"))
+optimapred=(predict(optima,type="response"))
+optimapred
+predict_1 = optimapred > 0.5
+
+# Accuracy
+(sum((optimapred==1 & TenYearCHD==1))+sum((optimapred==0 & TenYearCHD==0)))/length(TenYearCHD)
+
+# Sensitivity
+(sum((optimapred==1 & TenYearCHD==1))/(sum(TenYearCHD==1)))
+
+
+library(InformationValue)
+# install.packages('InformationValue')
+
+optCutOff <- optimalCutoff(TenYearCHD, predict(optima,type="response"))
+optCutOff
+
+# Problem 2
+
+full.model <- glm(TenYearCHD ~., data =data)
+step.model <- stepAIC(full.model, direction = "both", trace = FALSE)
+
+predict_2 = (predict(step.model, newdata = data))
+
+# All predicted values
+pred_1_optcut = optimapred > optCutOff
+pred_2_norm = predict_2 > 0.5
+pred_2_optcut = predict_2 > optCutOff
+
+
+# Accuracy
+(sum((pred_1_optcut==1 & TenYearCHD==1))+sum((pred_1_optcut==0 & TenYearCHD==0)))/length(TenYearCHD)
+(sum((pred_2_norm==1 & TenYearCHD==1))+sum((pred_2_norm==0 & TenYearCHD==0)))/length(TenYearCHD)
+(sum((pred_2_optcut==1 & TenYearCHD==1))+sum((pred_2_optcut==0 & TenYearCHD==0)))/length(TenYearCHD)
