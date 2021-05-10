@@ -1,0 +1,81 @@
+import pandas as pd
+
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score,precision_score
+
+def data_cleaning():
+    filename = "../R/CCapplication_data.csv"
+    df = pd.read_csv(filename)
+    drop_col = []
+    for x in df.columns:
+        value_of_missing = df[x].isnull().sum()/len(df)
+        if value_of_missing >= 0.15:
+            drop_col.append(x)
+
+    df.drop(labels=drop_col, axis=1,inplace=True)
+    df.drop(labels=['ORGANIZATION_TYPE'],axis=1,inplace=True)
+    df.dropna(inplace=True)
+    dummy_col = []
+    value_col = []
+    good_col = []
+    for x in df.columns:
+        if df[x].dtype not in ['int64','float64']:
+            dummy_col.append(x)
+            len_unique = len(df[x].unique())
+            print(len_unique)
+            if len_unique == 2:
+                print(x)
+                print(df[x].unique())
+        else:
+            len_unique = len(df[x].unique())
+            print(len_unique)
+            if len_unique > 2:
+                value_col.append(x)
+            else:
+                good_col.append(x)
+
+    replace_name_contract = {'Cash loans': 0, 'Revolving loans': 1}
+    replace_y_n = {'N':0, 'Y':1}
+    replace_gender = {'F':0,'M':1,'XNA':0}
+    df['NAME_CONTRACT_TYPE'].replace(replace_name_contract,inplace=True)
+    df['FLAG_OWN_CAR'].replace(replace_y_n,inplace=True)
+    df['FLAG_OWN_REALTY'].replace(replace_y_n,inplace=True)
+    df['CODE_GENDER'].replace(replace_gender, inplace=True)
+    scaler = StandardScaler()
+    df[value_col] = scaler.fit(df[value_col]).transform(df[value_col])
+    dummy_df = pd.get_dummies(df[dummy_col])
+    value_df = df.filter(value_col)
+    ready_df = pd.concat([df[good_col],value_df,dummy_df],axis=1)
+    ready_df.drop("SK_ID_CURR",axis=1,inplace=True)
+
+    X_data = ready_df.iloc[:,1:]
+    y_data = ready_df.iloc[:,0]
+    X_train, y_train, X_test, y_test = train_test_split(X_data,y_data,test_size=0.2,random_state=123)
+    return X_train, y_train, X_test, y_test
+
+def decision_tree_model(X_train, y_train, X_test, y_test):
+    decision_model = DecisionTreeClassifier(criterion="entropy",random_state=123,
+                                            max_depth=3,min_samples_leaf=5)
+    decision_model.fit(X_train,y_train)
+    y_pred = decision_model.predict(X_test)
+    print("Accuracy score of Decision Tree Classifier: ",
+          round(accuracy_score(y_true=y_test,y_pred=y_pred)*100,2))
+    print("Precision score of Decision Tree Classifier: ",
+          round(precision_score(y_true=y_test, y_pred=y_pred) * 100, 2))
+
+def rand_forest_classifier(X_train, y_train, X_test, y_test):
+    forest_model = RandomForestClassifier(n_estimators=50)
+    forest_model.fit(X_train,y_train)
+    y_pred = forest_model.predict(X_test)
+    print("Accuracy score of Random Forest Classifier: ",
+          round(accuracy_score(y_true=y_test, y_pred=y_pred) * 100,2))
+    print("Precision score of Random Forest Classifier: ",
+          round(precision_score(y_true=y_test, y_pred=y_pred) * 100, 2))
+
+if __name__=="__main__":
+    X_train, y_train, X_test, y_test = data_cleaning()
+    decision_tree_model(X_train, y_train, X_test, y_test)
+    rand_forest_classifier(X_train, y_train, X_test, y_test)
